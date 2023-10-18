@@ -6,6 +6,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <queue>
 #include <set>
 #include <tuple>
 #include <unordered_map>
@@ -55,33 +56,33 @@ public:
           start}; // If start is goal, return it immediately
     }
 
-    std::unordered_map<Node, Node> came_from;
-    std::unordered_map<Node, double> cost_so_far;
+    struct priority_queue_node {
+      Node node;
+      double score;
 
-    auto cmp = [&](const Node &a, const Node &b) {
-      return _heuristic_fn(a, goal) <
-             _heuristic_fn(b, goal);
-    };
-
-    std::set<Node, decltype(cmp)> frontier(cmp);
-
-    auto push_or_update = [&](Node node, double priority) {
-      auto [it, inserted] = frontier.insert(node);
-      if (!inserted) {
-        if (priority < cost_so_far[node]) {
-          frontier.erase(it);
-          frontier.insert(node);
-        }
+      bool
+      operator<(const priority_queue_node &other) const {
+        return score >
+               other.score; // Invert for min-heap behavior
       }
     };
 
-    push_or_update(start, 0);
+    std::unordered_map<Node, Node> came_from;
+    std::unordered_map<Node, double> cost_so_far;
+
+    std::priority_queue<priority_queue_node> frontier;
+
+    auto push_or_update = [&](Node node, double new_score) {
+      frontier.push({node, new_score});
+    };
+
+    push_or_update(start, _heuristic_fn(start, goal));
     came_from[start] = start;
     cost_so_far[start] = 0.0;
 
     while (!frontier.empty()) {
-      Node current = *frontier.begin();
-      frontier.erase(frontier.begin());
+      Node current = frontier.top().node;
+      frontier.pop();
 
       if (current == goal) {
         path total_path;
